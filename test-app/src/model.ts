@@ -5,7 +5,11 @@ import { attachInsight } from "@effector/insight-back-web";
 
 const root = createDomain();
 
-attachInsight(root)
+attachInsight(root, {
+    coordinator: {
+        port: 5003
+    }
+})
 
 export const clicked = root.createEvent();
 export const $count = root.createStore(0).on(clicked, (s) => s + 1);
