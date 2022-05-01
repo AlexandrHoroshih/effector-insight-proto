@@ -1,0 +1,18 @@
+{
+  "name": "coordinator",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "scripts": {
+    "dev": "ts-node-dev index.ts"
+  },
+  "dependencies": {
+    "fastify": "^3.29.0",
+    "typescript": "^4.6.4"
+  },
+  "devDependencies": {
+    "@types/node": "^17.0.30",
+    "ts-node": "^10.7.0",
+    "ts-node-dev": "^1.1.8"
+  }
+}
