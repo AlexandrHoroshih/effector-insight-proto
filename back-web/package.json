@@ -5,10 +5,12 @@
   "devDependencies": {
     "microbundle": "^0.15.0"
   },
+  "type": "module",
   "source": "index.ts",
   "exports": {
     "default": "./dist/insight.modern.js"
   },
+  "main": "./dist/insight.cjs",
   "module": "./dist/insight.module.js",
   "scripts": {
     "build": "microbundle",
