@@ -7,8 +7,8 @@ function attachInsight(
   config?: {
     scope?: Scope;
     coordinator?: Show<CoordinatorConfig>;
-    reporter?: Reporter;
-    timer?: typeof defaultTimer;
+    reporter?: Show<Reporter>;
+    timer?: Show<Timer>;
   }
 ): Subscription {
   if (!domain) {
@@ -39,12 +39,6 @@ function attachInsight(
 
 export { attachInsight };
 
-type Loc = {
-  file: string;
-  column: number;
-  line: number;
-};
-
 type Subscription = {
   (): void;
   unsubscribe(): void;
@@ -57,12 +51,20 @@ const createSubscription = (cb: () => void): Subscription => {
   return unsub;
 };
 
+type CoordinatorConfig = {
+  port?: number;
+};
+
+const defaultTimer = performance.now;
+type Timer = typeof defaultTimer;
+
 type TraceId = string;
 const getTraceId = (): TraceId => nanoid(6);
 
 type ChunkId = string;
 const getChunkId = (): ChunkId => nanoid(6);
 
+// Reporter
 type ReportLog = {
   traceId: TraceId;
   chunkId: ChunkId;
@@ -78,10 +80,6 @@ type ReportUnit = {
   column?: number;
   line?: number;
   kind: "store" | "event" | "effect";
-};
-
-type CoordinatorConfig = {
-  port?: number;
 };
 
 type Reporter = typeof defaultReporter;
@@ -107,8 +105,6 @@ const defaultReporter = async (
     },
   });
 };
-
-const defaultTimer = performance.now;
 
 const createReporters = (report: Reporter, config: CoordinatorConfig) => {
   const reportUnit = async (
@@ -138,13 +134,19 @@ const createReporters = (report: Reporter, config: CoordinatorConfig) => {
   };
 };
 
+type Loc = {
+  file: string;
+  column: number;
+  line: number;
+};
+
 const readUnitReport = (
   unit: Store<any> | Event<any> | Effect<any, any, any>
 ): ReportUnit => {
   const loc = ((unit as any)?.defaultConfig?.loc as Loc) ?? ({} as Loc);
 
   if (["domain", "scope"].includes(unit.kind)) {
-    throw Error('Invalid report')
+    throw Error("Invalid report");
   }
 
   return {
@@ -157,6 +159,7 @@ const readUnitReport = (
   };
 };
 
+// helper types
 type BuiltInObject =
   | Error
   | Date
