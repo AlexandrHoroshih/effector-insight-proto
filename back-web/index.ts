@@ -1,6 +1,6 @@
 import type { Domain, Scope } from "effector";
 
-import type { Show } from "./types";
+import type { Show } from "./lib";
 import { type Subscription, createSubscription } from "./subscription";
 import {
   type Reporter,

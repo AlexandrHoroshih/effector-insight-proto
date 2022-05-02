@@ -1,5 +1,5 @@
 import type { Scope, Event, Store, Effect, Node } from "effector";
-import type { TraceId, ChunkId, ReportLog } from "./types";
+import type { TraceId, ChunkId, ReportLog } from "./lib";
 import type { Reporter, CoordinatorConfig } from "./reporter";
 
 import { createWatch, is, step } from "effector";
@@ -8,6 +8,15 @@ import { getSid, getId } from "./lib";
 
 export const defaultTimer = performance.now;
 export type Timer = typeof defaultTimer;
+
+let traceId: TraceId;
+let chunkId: ChunkId;
+
+let fallbackId = 0;
+const getTraceId = () =>
+  (traceId ?? "unknown_trace_" + fallbackId++) as TraceId;
+const getChunkId = () =>
+  (chunkId ?? "unknown_chunk_" + fallbackId++) as ChunkId;
 
 export const createLogReporter = (
   report: Reporter,
@@ -22,8 +31,13 @@ export const createLogReporter = (
   ) => {
     ((unit as any).graphite as Node).seq.unshift(
       step.compute({
-        fn(_, _, stack) {
-          stack.scope;
+        fn(_, __, stack) {
+          if (!traceId) {
+            traceId = getId();
+          }
+          if (!chunkId) {
+            chunkId = getId();
+          }
         },
       })
     );
@@ -38,6 +52,8 @@ export const createLogReporter = (
             payload,
             time: timer(),
             sid: getSid(unit),
+            traceId: getTraceId(),
+            chunkId: getChunkId(),
           };
 
           report(

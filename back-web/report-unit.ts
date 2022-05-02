@@ -1,5 +1,5 @@
 import type { Store, Event, Effect } from "effector";
-import type { ReportUnit } from "./types";
+import type { ReportUnit } from "./lib";
 import type { Reporter, CoordinatorConfig } from "./reporter";
 import { getSid } from "./lib";
 

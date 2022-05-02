@@ -1,4 +1,4 @@
-import type { ReportLog, ReportUnit } from "./types";
+import type { ReportLog, ReportUnit } from "./lib";
 
 export type Reporter = typeof defaultReporter;
 
