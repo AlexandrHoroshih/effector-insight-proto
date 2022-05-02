@@ -26,7 +26,8 @@ function attachInsight(
 
   console.log("TRACKING", domain.shortName);
 
-  const { reportLog, reportUnit } = createReporters(reporter, coordinator);
+  const reportLog = createLogReporter(reporter, coordinator);
+  const reportUnit = createUnitReporter(reporter, coordinator);
 
   domain.onCreateStore(reportUnit);
   domain.onCreateEvent(reportUnit);
@@ -54,15 +55,6 @@ const createSubscription = (cb: () => void): Subscription => {
 type CoordinatorConfig = {
   port?: number;
 };
-
-const defaultTimer = performance.now;
-type Timer = typeof defaultTimer;
-
-type TraceId = string;
-const getTraceId = (): TraceId => nanoid(6);
-
-type ChunkId = string;
-const getChunkId = (): ChunkId => nanoid(6);
 
 // Reporter
 type ReportLog = {
@@ -106,10 +98,10 @@ const defaultReporter = async (
   });
 };
 
-const createReporters = (report: Reporter, config: CoordinatorConfig) => {
-  const reportUnit = async (
-    unit: Store<any> | Event<any> | Effect<any, any, any>
-  ) => {
+// Unit
+const createUnitReporter =
+  (report: Reporter, config: CoordinatorConfig) =>
+  async (unit: Store<any> | Event<any> | Effect<any, any, any>) => {
     await report(
       {
         type: "units",
@@ -118,21 +110,6 @@ const createReporters = (report: Reporter, config: CoordinatorConfig) => {
       config
     );
   };
-  const reportLog = async (log: ReportLog) => {
-    await report(
-      {
-        type: "logs",
-        body: [log],
-      },
-      config
-    );
-  };
-
-  return {
-    reportUnit,
-    reportLog,
-  };
-};
 
 type Loc = {
   file: string;
@@ -157,6 +134,30 @@ const readUnitReport = (
     line: loc.line,
     kind: unit.kind as ReportUnit["kind"],
   };
+};
+
+// Log
+const defaultTimer = performance.now;
+type Timer = typeof defaultTimer;
+
+type TraceId = string;
+const getTraceId = (): TraceId => nanoid(6);
+
+type ChunkId = string;
+const getChunkId = (): ChunkId => nanoid(6);
+
+const createLogReporter = (report: Reporter, config: CoordinatorConfig) => {
+  const reportLog = async (log: ReportLog) => {
+    await report(
+      {
+        type: "logs",
+        body: [log],
+      },
+      config
+    );
+  };
+
+  return reportLog;
 };
 
 // helper types
