@@ -9,8 +9,8 @@ import { getSid, getId } from "./lib";
 export const defaultTimer = performance.now;
 export type Timer = typeof defaultTimer;
 
-let traceId: TraceId;
-let chunkId: ChunkId;
+let traceId: TraceId | null;
+let chunkId: ChunkId | null;
 const traceEffectsCount: Record<TraceId, number> = {};
 
 export const createLogReporter = (
@@ -24,38 +24,29 @@ export const createLogReporter = (
   const attachLogReporter = async (
     unit: Store<any> | Event<any> | Effect<any, any, any>
   ) => {
-    if (is.event(unit) || is.effect(unit)) {
-      const originalCreate = (unit as any).create;
-      (unit as any).create = (...args) => {
-        const localChunkdId = chunkId;
-        const localTraceId = traceId;
-
-        if (!localTraceId) {
-          traceId = getId();
-        }
-        if (!localChunkdId) {
-          chunkId = getId();
-        }
-        originalCreate(...args);
-        if (!localChunkdId) {
-          chunkId = null;
-        }
-        if (!localTraceId) {
-          const count = traceEffectsCount[traceId];
-          if (count === 0) {
-            report(
-              {
-                type: "logs",
-                body: [{ traceId, traceEnd: true }],
-              },
-              config
-            );
-            delete traceEffectsCount[traceId];
+    const setupIdStep = step.compute({
+      fn(data, __, stack) {
+        if (scope === stack.scope) {
+          if (!chunkId) {
+            chunkId = getId();
+            queueMicrotask(() => {
+              chunkId = null;
+            });
           }
-          traceId = null;
         }
-      };
-    }
+
+        return data;
+      },
+    });
+
+    ((unit as any).graphite as Node).seq.unshift(setupIdStep);
+
+    destroyers.push(() => {
+      const idx = ((unit as any).graphite as Node).seq.findIndex(
+        (v) => v === setupIdStep
+      );
+      ((unit as any).graphite as Node).seq.splice(idx, 1);
+    });
 
     // add logger
     destroyers.push(
@@ -84,31 +75,18 @@ export const createLogReporter = (
 
     if (is.effect(unit)) {
       // traceId and count for effect
+      const fx = unit;
       destroyers.push(
         createWatch({
-          unit,
+          unit: fx,
           scope,
           fn: () => {
             traceEffectsCount[traceId] = traceEffectsCount[traceId] + 1;
           },
         })
       );
-      const traceSaveStep = step.compute({
-        fn(data) {
-          const { req } = data;
-          req._insight_.traceId = traceId;
-          return data;
-        },
-      });
-      ((unit as any).graphite as Node).seq.push(traceSaveStep);
-      destroyers.push(() => {
-        const idx = ((unit as any).graphite as Node).seq.findIndex(
-          (v) => v === traceSaveStep
-        );
-        ((unit as any).graphite as Node).seq.splice(idx, 1);
-      });
 
-      const anyway = unit.finally;
+      const anyway = fx.finally;
 
       attachLogReporter(anyway);
 
@@ -122,23 +100,6 @@ export const createLogReporter = (
           },
         })
       );
-      const traceReInstallStep = step.compute({
-        fn(data) {
-          const { req } = data;
-          const prevTraceId = req._insight_.traceId;
-
-          traceId = prevTraceId;
-
-          return data;
-        },
-      });
-      ((anyway as any).graphite as Node).seq.unshift(traceReInstallStep);
-      destroyers.push(() => {
-        const idx = ((anyway as any).graphite as Node).seq.findIndex(
-          (v) => v === traceReInstallStep
-        );
-        ((anyway as any).graphite as Node).seq.splice(idx, 1);
-      });
     }
   };
 
