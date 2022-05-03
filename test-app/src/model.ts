@@ -1,4 +1,4 @@
-import { createDomain, sample } from "effector";
+import { createDomain, sample, launch } from "effector";
 import { reset, every } from "patronum";
 
 import { attachInsight } from "@effector/insight-back-web";
@@ -6,10 +6,14 @@ import { attachInsight } from "@effector/insight-back-web";
 const root = createDomain();
 
 attachInsight(root, {
-    coordinator: {
-        port: 5003
-    }
-})
+  coordinator: {
+    port: 5003,
+  },
+  reporter: async (log, config) => {
+    console.log(log.type, log.body[0]);
+  },
+  timer: Date.now
+});
 
 export const clicked = root.createEvent();
 export const $count = root.createStore(0).on(clicked, (s) => s + 1);
