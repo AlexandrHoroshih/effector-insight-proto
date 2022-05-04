@@ -150,7 +150,7 @@ export const createLogReporter = (
       // inject traceId-saver to keep between effects
       (
         (fx as unknown as { graphite: Node }).graphite.scope.runner
-          .node as Node["seq"]
+          .seq as Node["seq"]
       ).splice(1, 0, fxSaveTraceIdStep);
 
       attachLogReporter(anyway);
