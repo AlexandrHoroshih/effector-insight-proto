@@ -1,12 +1,12 @@
 import type { Scope, Event, Store, Effect, Node } from "effector";
 import type { TraceId, ChunkId, ReportLog } from "./lib";
-import type { Reporter, CoordinatorConfig } from "./reporter";
+import type { Reporter } from "./reporter";
 
 import { createWatch, is, step } from "effector";
 
 import { getSid, getId, findParentUnit, getSidFromNode } from "./lib";
 
-export const defaultTimer = performance.now;
+export const defaultTimer = Date.now;
 export type Timer = typeof defaultTimer;
 
 let directParentMap: Record<string, string[]> = {};
@@ -49,7 +49,6 @@ const withTrace =
 export const createLogReporter = (
   report: Reporter,
   timer: Timer,
-  config: CoordinatorConfig,
   scope?: Scope
 ) => {
   const destroyers: (() => void)[] = [];
@@ -81,18 +80,11 @@ export const createLogReporter = (
             traceId = null;
             if (traceEffectsCount[localId] === 0) {
               delete traceEffectsCount[localId];
-              report(
-                {
-                  type: "logs",
-                  body: [
-                    {
-                      traceId: localId,
-                      traceEnd: true,
-                    },
-                  ],
-                },
-                config
-              );
+              report({
+                type: "log",
+                traceId: localId,
+                traceEnd: true,
+              });
             }
           });
         }
@@ -132,21 +124,16 @@ export const createLogReporter = (
         fn: (payload) => {
           const sid = getSid(unit);
           const log: ReportLog = {
+            type: "log",
             payload,
             time: timer(),
             sid,
-            traceId,
-            chunkId,
+            traceId: traceId ?? "unknown_trace",
+            chunkId: chunkId ?? "unknown_chunk",
             parentSid: directParentMap[sid],
           };
 
-          report(
-            {
-              type: "logs",
-              body: [log],
-            },
-            config
-          );
+          report(log);
         },
       })
     );
@@ -188,18 +175,11 @@ export const createLogReporter = (
               traceId = null;
               if (traceEffectsCount[localId] === 0) {
                 delete traceEffectsCount[localId];
-                report(
-                  {
-                    type: "logs",
-                    body: [
-                      {
-                        traceId: localId,
-                        traceEnd: true,
-                      },
-                    ],
-                  },
-                  config
-                );
+                report({
+                  type: "log",
+                  traceId: localId ?? "unknown_trace",
+                  traceEnd: true,
+                });
               }
             });
           },

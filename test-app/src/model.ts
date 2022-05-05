@@ -10,15 +10,15 @@ const unitsMap = new Map<string, any>();
 
 attachInsight(root, {
   scope,
-  reporter: async (log, config) => {
-    if (log.type === "units") {
-      const unit = log.body[0];
+  reporter: async (log) => {
+    if (log.type === "unit") {
+      const unit = log;
       unitsMap.set(unit.sid, unit);
     }
     console.log(
       log.type,
-      log.body[0],
-      unitsMap.get((log.body[0] as any)?.sid!)?.name
+      log,
+      unitsMap.get((log as any)?.sid)?.name
     );
   },
   timer: Date.now,

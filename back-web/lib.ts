@@ -51,6 +51,7 @@ export type ChunkId = string;
 
 export type ReportLog =
   | {
+      type: "log";
       traceId: TraceId;
       chunkId: ChunkId;
       sid: string;
@@ -59,11 +60,13 @@ export type ReportLog =
       parentSid: string[];
     }
   | {
+      type: "log";
       traceId: TraceId;
       traceEnd: true;
     };
 
 export type ReportUnit = {
+  type: "unit";
   sid: string;
   name: string;
   file?: string;

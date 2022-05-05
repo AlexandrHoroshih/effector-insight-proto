@@ -1,18 +1,12 @@
 import type { Store, Event, Effect } from "effector";
 import type { ReportUnit } from "./lib";
-import type { Reporter, CoordinatorConfig } from "./reporter";
+import type { Reporter } from "./reporter";
 import { getSid } from "./lib";
 
 export const createUnitReporter =
-  (report: Reporter, config: CoordinatorConfig) =>
+  (report: Reporter) =>
   async (unit: Store<any> | Event<any> | Effect<any, any, any>) => {
-    await report(
-      {
-        type: "units",
-        body: [readUnitReport(unit)],
-      },
-      config
-    );
+    await report(readUnitReport(unit));
   };
 
 type Loc = {
@@ -31,6 +25,7 @@ const readUnitReport = (
   }
 
   return {
+    type: "unit",
     sid: getSid(unit),
     name: unit.shortName,
     file: loc.file,

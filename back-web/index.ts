@@ -2,20 +2,15 @@ import type { Domain, Scope } from "effector";
 
 import type { Show } from "./lib";
 import { type Subscription, createSubscription } from "./subscription";
-import {
-  type Reporter,
-  type CoordinatorConfig,
-  defaultReporter,
-} from "./reporter";
+import { type Reporter } from "./reporter";
 import { createUnitReporter } from "./report-unit";
 import { type Timer, createLogReporter, defaultTimer } from "./report-log";
 
 function attachInsight(
   domain: Domain,
-  config?: {
+  config: {
     scope?: Scope;
-    coordinator?: Show<CoordinatorConfig>;
-    reporter?: Show<Reporter>;
+    reporter: Show<Reporter>;
     timer?: Show<Timer>;
   }
 ): Subscription {
@@ -23,24 +18,12 @@ function attachInsight(
     throw new Error("Must have domain!!");
   }
 
-  const {
-    scope,
-    coordinator = {
-      port: 5000,
-    },
-    reporter = defaultReporter,
-    timer = defaultTimer,
-  } = config ?? {};
+  const { scope, reporter, timer = defaultTimer } = config ?? {};
 
   console.log("TRACKING", domain.shortName);
 
-  const [attachLog, destroy] = createLogReporter(
-    reporter,
-    timer,
-    coordinator,
-    scope
-  );
-  const reportUnit = createUnitReporter(reporter, coordinator);
+  const [attachLog, destroy] = createLogReporter(reporter, timer, scope);
+  const reportUnit = createUnitReporter(reporter);
 
   domain.onCreateStore(reportUnit);
   domain.onCreateEvent(reportUnit);
