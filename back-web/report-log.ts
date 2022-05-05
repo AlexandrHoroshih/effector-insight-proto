@@ -86,10 +86,12 @@ export const createLogReporter = (
 
   // for fx runners
   const fxSaveTraceIdStep = step.compute({
-    fn(data) {
-      const baseHandler = data.handler;
+    fn(data, _, stack) {
+      if (scope === stack.scope) {
+        const baseHandler = data.handler;
 
-      data.handler = withTrace(baseHandler);
+        data.handler = withTrace(baseHandler);
+      }
 
       return data;
     },
@@ -101,10 +103,7 @@ export const createLogReporter = (
     ((unit as any).graphite as Node).seq.unshift(setupIdStep);
 
     destroyers.push(() => {
-      const idx = ((unit as any).graphite as Node).seq.findIndex(
-        (v) => v === setupIdStep
-      );
-      ((unit as any).graphite as Node).seq.splice(idx, 1);
+      removeStep(((unit as any).graphite as Node).seq, setupIdStep);
     });
 
     // add logger
@@ -145,13 +144,15 @@ export const createLogReporter = (
         })
       );
 
-      const anyway = fx.finally;
-
       // inject traceId-saver to keep between effects
-      (
-        (fx as unknown as { graphite: Node }).graphite.scope.runner
-          .seq as Node["seq"]
-      ).splice(1, 0, fxSaveTraceIdStep);
+      const fxRunner = (fx as unknown as { graphite: Node }).graphite.scope
+        .runner as Node;
+      fxRunner.seq.splice(1, 0, fxSaveTraceIdStep); // must be put after step with handler resolving
+      destroyers.push(() => {
+        removeStep(fxRunner.seq, fxSaveTraceIdStep);
+      });
+
+      const anyway = fx.finally;
 
       attachLogReporter(anyway);
 
@@ -193,3 +194,8 @@ export const createLogReporter = (
 
   return [attachLogReporter, destroy] as const;
 };
+
+function removeStep(seq: Node["seq"], item: Node["seq"][number]) {
+  const idx = seq.findIndex((i) => i === item);
+  seq.splice(idx, 1);
+}
