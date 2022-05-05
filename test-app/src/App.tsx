@@ -1,8 +1,8 @@
-import { useStore, useEvent } from "effector-react";
+import { useStore, useEvent, Provider } from "effector-react/scope";
 import logo from "./logo.svg";
 import "./App.css";
 
-import { $count, clicked, $anotherCount } from "./model";
+import { $count, clicked, $anotherCount, scope } from "./model";
 
 function App() {
   const count = useStore($count);
@@ -24,4 +24,9 @@ function App() {
   );
 }
 
-export default App;
+const FinalApp = () => (
+  <Provider value={scope}>
+    <App />
+  </Provider>
+);
+export default FinalApp;
