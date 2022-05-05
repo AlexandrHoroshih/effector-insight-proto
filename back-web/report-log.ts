@@ -4,15 +4,23 @@ import type { Reporter, CoordinatorConfig } from "./reporter";
 
 import { createWatch, is, step } from "effector";
 
-import { getSid, getId } from "./lib";
+import { getSid, getId, findParentUnit, getSidFromNode } from "./lib";
 
 export const defaultTimer = performance.now;
 export type Timer = typeof defaultTimer;
 
+let directParentMap: Record<string, string[]> = {};
+const setParent = (sid: string, parent: string) => {
+  if (!directParentMap[sid]) {
+    directParentMap[sid] = [];
+  }
+  directParentMap[sid].push(parent);
+};
 let traceId: TraceId | null;
 let chunkId: ChunkId | null;
 const clearChunkId = () => {
   chunkId = null;
+  directParentMap = {};
 };
 const traceEffectsCount: Record<TraceId, number> = {};
 
@@ -49,6 +57,16 @@ export const createLogReporter = (
   const setupIdStep = step.compute({
     fn(data, __, stack) {
       if (scope === stack.scope) {
+        console.log({
+          unit: stack.node.meta,
+          parent: findParentUnit(stack)?.node.meta,
+          stack,
+        });
+        const parentUnit = findParentUnit(stack)?.node;
+        if (parentUnit) {
+          setParent(stack.node.meta.sid, getSidFromNode(parentUnit));
+        }
+
         // no chunk-id == first launched unit in the task
         if (!chunkId) {
           chunkId = getId();
@@ -112,12 +130,14 @@ export const createLogReporter = (
         unit,
         scope,
         fn: (payload) => {
+          const sid = getSid(unit);
           const log: ReportLog = {
             payload,
             time: timer(),
-            sid: getSid(unit),
+            sid,
             traceId,
             chunkId,
+            parentSid: directParentMap[sid],
           };
 
           report(

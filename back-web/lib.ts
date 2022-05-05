@@ -1,11 +1,10 @@
-import type { Store, Event, Effect, Unit } from "effector";
+import type { Store, Event, Effect, Unit, Stack, Node } from "effector";
 import { nanoid } from "nanoid/non-secure";
 
 export const getSid = (unit: Store<any> | Event<any> | Effect<any, any, any>) =>
   unit.sid ?? `unknown_${unit.kind}_${(unit as any)?.id}`;
 
 export const getId = () => nanoid(6);
-
 
 type BuiltInObject =
   | Error
@@ -57,6 +56,7 @@ export type ReportLog =
       sid: string;
       payload: unknown;
       time: number;
+      parentSid: string[];
     }
   | {
       traceId: TraceId;
@@ -72,3 +72,51 @@ export type ReportUnit = {
   kind: "store" | "event" | "effect";
 };
 
+const isSupportedUnit = (
+  kind: string
+): kind is "store" | "event" | "effect" => {
+  return kind === "store" || kind === "event" || kind === "effect";
+};
+
+const mergeNameRegex = /merge\(.*\)/;
+const isMergedTrigger = (meta: Record<string, string>) => {
+  return Boolean(meta?.derived && meta?.name.match(mergeNameRegex));
+};
+
+export const findParentUnit = (stack: Stack): Stack | undefined => {
+  let parent = stack.parent;
+
+  if (
+    parent &&
+    (!isSupportedUnit(parent.node.meta.op) || isMergedTrigger(parent.node.meta))
+  ) {
+    return findParentUnit(parent);
+  }
+
+  return parent;
+};
+
+const isEffectFinally = (node: Node) => {
+  const { sid, named } = node.meta;
+  return Boolean(
+    !sid &&
+      (named === "finally" ||
+        named === "done" ||
+        named === "doneData" ||
+        named === "fail" ||
+        named === "failData")
+  );
+};
+
+export const getSidFromNode = (node: Node) => {
+  const { meta } = node;
+
+  if (isEffectFinally(node)) {
+    const parentEffect = node.family.owners.find((n) => n.meta.op === "effect");
+    if (parentEffect) {
+      return parentEffect.meta.sid + "|" + meta.named;
+    }
+  }
+
+  return meta.sid;
+};
