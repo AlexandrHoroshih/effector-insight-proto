@@ -2,7 +2,17 @@ import type { Store, Event, Effect, Unit, Stack, Node } from "effector";
 import { nanoid } from "nanoid/non-secure";
 
 export const getSid = (unit: Store<any> | Event<any> | Effect<any, any, any>) =>
-  unit.sid ?? `unknown_${unit.kind}_${(unit as any)?.id}`;
+  unit.sid ??
+  getSidFromNode((unit as unknown as { graphite: Node }).graphite) ??
+  `unknown_${unit.kind}_${(unit as any)?.id}`;
+
+export const getName = (
+  unit: Store<any> | Event<any> | Effect<any, any, any>
+) => {
+  const graphite = (unit as any).graphite as Node;
+
+  return graphite.meta.name;
+};
 
 export const getId = () => nanoid(6);
 
@@ -49,21 +59,21 @@ export type TraceId = string;
 
 export type ChunkId = string;
 
-export type ReportLog =
-  | {
-      type: "log";
-      traceId: TraceId;
-      chunkId: ChunkId;
-      sid: string;
-      payload: unknown;
-      time: number;
-      parentSid: string[];
-    }
-  | {
-      type: "log";
-      traceId: TraceId;
-      traceEnd: true;
-    };
+export type ReportLog = {
+  type: "log";
+  traceId: TraceId;
+  chunkId: ChunkId;
+  sid: string;
+  payload: unknown;
+  time: number;
+  parentSid: string[];
+};
+
+export type TraceEndLog = {
+  type: "traceEnd";
+  traceId: TraceId;
+  traceEnd: true;
+};
 
 export type ReportUnit = {
   type: "unit";
@@ -73,6 +83,7 @@ export type ReportUnit = {
   column?: number;
   line?: number;
   kind: "store" | "event" | "effect";
+  defaultState?: unknown;
 };
 
 const isSupportedUnit = (
@@ -99,7 +110,7 @@ export const findParentUnit = (stack: Stack): Stack | undefined => {
   return parent;
 };
 
-const isEffectFinally = (node: Node) => {
+const isEffectChild = (node: Node) => {
   const { sid, named } = node.meta;
   return Boolean(
     !sid &&
@@ -107,14 +118,16 @@ const isEffectFinally = (node: Node) => {
         named === "done" ||
         named === "doneData" ||
         named === "fail" ||
-        named === "failData")
+        named === "failData" ||
+        named === "inFlight" ||
+        named === "pending")
   );
 };
 
 export const getSidFromNode = (node: Node) => {
   const { meta } = node;
 
-  if (isEffectFinally(node)) {
+  if (isEffectChild(node)) {
     const parentEffect = node.family.owners.find((n) => n.meta.op === "effect");
     if (parentEffect) {
       return parentEffect.meta.sid + "|" + meta.named;

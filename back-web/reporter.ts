@@ -1,3 +1,5 @@
-import type { ReportLog, ReportUnit } from "./lib";
+import type { ReportLog, ReportUnit, TraceEndLog } from "./lib";
 
-export type Reporter = (report: ReportLog | ReportUnit) => unknown;
+export type Reporter = (
+  report: ReportLog | ReportUnit | TraceEndLog
+) => unknown;

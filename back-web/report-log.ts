@@ -9,12 +9,12 @@ import { getSid, getId, findParentUnit, getSidFromNode } from "./lib";
 export const defaultTimer = Date.now;
 export type Timer = typeof defaultTimer;
 
-let directParentMap: Record<string, string[]> = {};
+let directParentMap: Record<string, Set<string>> = {};
 const setParent = (sid: string, parent: string) => {
   if (!directParentMap[sid]) {
-    directParentMap[sid] = [];
+    directParentMap[sid] = new Set();
   }
-  directParentMap[sid].push(parent);
+  directParentMap[sid].add(parent);
 };
 let traceId: TraceId | null;
 let chunkId: ChunkId | null;
@@ -32,7 +32,7 @@ const withTrace =
       traceId = localId;
     };
     try {
-      const result = handler(args);
+      const result = handler(...args);
 
       // if result is promise, then function is async, need to reinstall trace id when its finished
       if (typeof result?.then === "function") {
@@ -56,14 +56,9 @@ export const createLogReporter = (
   const setupIdStep = step.compute({
     fn(data, __, stack) {
       if (scope === stack.scope) {
-        console.log({
-          unit: stack.node.meta,
-          parent: findParentUnit(stack)?.node.meta,
-          stack,
-        });
         const parentUnit = findParentUnit(stack)?.node;
         if (parentUnit) {
-          setParent(stack.node.meta.sid, getSidFromNode(parentUnit));
+          setParent(getSidFromNode(stack.node), getSidFromNode(parentUnit));
         }
 
         // no chunk-id == first launched unit in the task
@@ -81,7 +76,7 @@ export const createLogReporter = (
             if (traceEffectsCount[localId] === 0) {
               delete traceEffectsCount[localId];
               report({
-                type: "log",
+                type: "traceEnd",
                 traceId: localId,
                 traceEnd: true,
               });
@@ -130,7 +125,9 @@ export const createLogReporter = (
             sid,
             traceId: traceId ?? "unknown_trace",
             chunkId: chunkId ?? "unknown_chunk",
-            parentSid: directParentMap[sid],
+            parentSid: directParentMap[sid]
+              ? Array.from(directParentMap[sid])
+              : [],
           };
 
           report(log);
@@ -162,6 +159,12 @@ export const createLogReporter = (
       const anyway = fx.finally;
 
       attachLogReporter(anyway);
+      attachLogReporter(fx.done);
+      attachLogReporter(fx.fail);
+      attachLogReporter(fx.doneData);
+      attachLogReporter(fx.failData);
+      attachLogReporter(fx.inFlight);
+      attachLogReporter(fx.pending);
 
       // traceId and count from effect's finally
       destroyers.push(
@@ -176,7 +179,7 @@ export const createLogReporter = (
               if (traceEffectsCount[localId] === 0) {
                 delete traceEffectsCount[localId];
                 report({
-                  type: "log",
+                  type: "traceEnd",
                   traceId: localId ?? "unknown_trace",
                   traceEnd: true,
                 });
